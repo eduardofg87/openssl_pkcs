@@ -1,0 +1,6 @@
+
+---- EXPECTED OUTPUT
+exception throwed
+---- ACTUAL OUTPUT
+Fatal error: Invalid File. in /home/php-src/ext/openssl_pkcs/tests/002-03-invalid-file-p7s.php on line 3
+---- FAILED

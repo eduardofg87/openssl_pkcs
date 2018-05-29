@@ -62,7 +62,7 @@ PHP_METHOD(openssl_pkcs7, __construct) {
  */
 PHP_METHOD(openssl_pkcs7, getSignature) {
     zval * result;
-           result = zend_read_property(openssl_pkcs_p7s_ce, getThis(), "signature", sizeof("signature")-1, 1 TSRMLS_CC);
+           result = zend_read_property(openssl_pkcs_p7s_ce, getThis(), "signature", sizeof("signature")-1, 0,0);
     RETURN_ZVAL(result, 1, 0);
 }
 
@@ -71,7 +71,7 @@ PHP_METHOD(openssl_pkcs7, getSignature) {
  */
 PHP_METHOD(openssl_pkcs7, getContent) {
     zval * result;
-           result = zend_read_property(openssl_pkcs_p7s_ce, getThis(), "content", sizeof("content")-1, 1 TSRMLS_CC);
+           result = zend_read_property(openssl_pkcs_p7s_ce, getThis(), "content", sizeof("content")-1,0 ,0);
     RETURN_ZVAL(result, 1, 0);
 }
 
@@ -109,14 +109,14 @@ PHP_METHOD(openssl_pkcs7, verify) {
     }
     fclose(file);
 
-    content = zend_read_property(openssl_pkcs_p7s_ce, getThis(), "content", sizeof("content")-1, 1 TSRMLS_CC);
-    if (NULL == content->value.str.val) {
+    content = zend_read_property(openssl_pkcs_p7s_ce, getThis(), "content", sizeof("content")-1, 0,0);
+    if (NULL == content->value.str->val) {
         php_error(E_WARNING, "invalid content.");
         return;
     }
 
     MAKE_STD_ZVAL(result);
-    if (strcmp(contentStringEncoded, content->value.str.val) == 0) {
+    if (strcmp(contentStringEncoded, content->value.str->val) == 0) {
         ZVAL_BOOL(result, 1);
     } else {
         ZVAL_BOOL(result, 0);
@@ -143,7 +143,7 @@ void openssl_pkcs_init_p7s(TSRMLS_D) {
     INIT_CLASS_ENTRY(ce, "Openssl\\P7s", openssl_pkcs_p7s_methods);
     openssl_pkcs_p7s_ce = zend_register_internal_class(&ce TSRMLS_CC);
     // flags
-    openssl_pkcs_p7s_ce->ce_flags |= ZEND_ACC_FINAL_CLASS;
+    openssl_pkcs_p7s_ce->ce_flags |= ZEND_ACC_FINAL;
     // attributes
     zend_declare_property_null(openssl_pkcs_p7s_ce, "signature", sizeof("signature")-1, ZEND_ACC_PRIVATE TSRMLS_CC);
     zend_declare_property_null(openssl_pkcs_p7s_ce, "content", sizeof("content")-1, ZEND_ACC_PRIVATE TSRMLS_CC);
@@ -200,7 +200,7 @@ void setP7sSignedContent(PKCS7 * p7s, zval ** signedContent) {
     unsigned char * contentStringEncoded;
 
     if (NULL == p7s->d.sign->contents->d.data) {
-        ZVAL_STRING(*signedContent, "", 1);
+        ZVAL_STRING(*signedContent, "");
         return;
     }
 
@@ -209,7 +209,7 @@ void setP7sSignedContent(PKCS7 * p7s, zval ** signedContent) {
     contentString = (unsigned char *) malloc(length);
     memcpy(contentString, octet_str->data, length);
     bin_to_strhex(contentString, length, &contentStringEncoded);
-    ZVAL_STRING(*signedContent, contentStringEncoded, 1);
+    ZVAL_STRING(*signedContent, contentStringEncoded);
 
     free(contentString);
     free(contentStringEncoded);
@@ -229,10 +229,10 @@ void setP7sSignature(PKCS7 * p7s, PKCS7_SIGNER_INFO * signerInfo, zval ** signat
     signedTime = PKCS7_get_signed_attribute(signerInfo, NID_pkcs9_signingTime);
     
     MAKE_STD_ZVAL(param1);
-    ZVAL_STRING(param1, "ymdHisZ", 1);
+    ZVAL_STRING(param1, "ymdHisZ");
 
     MAKE_STD_ZVAL(param2);
-    ZVAL_STRING(param2, signedTime->value.utctime->data, 1);
+    ZVAL_STRING(param2, signedTime->value.utctime->data);
 
     if (zend_call_method(NULL, php_date_get_date_ce(), NULL, "createfromformat", strlen("createFromFormat"), &datetime, 2, param1, param2 TSRMLS_CC) == NULL) {
         php_error(E_WARNING, "Could not create signature datetime.");
@@ -288,10 +288,10 @@ void setX509EntityData(X509 * x509, zval ** entity) {
     int index = X509_NAME_get_index_by_NID(subjectName, nid, -1);
     X509_NAME_ENTRY * nameEntry = X509_NAME_get_entry(subjectName, index);
 
-    add_assoc_string(*entity, "commonName", ASN1_STRING_data(X509_NAME_ENTRY_get_data(nameEntry)), 1);
+    add_assoc_string(*entity, "commonName", ASN1_STRING_data(X509_NAME_ENTRY_get_data(nameEntry)));
 
     getX509SerialNumber(x509, serial);
-    add_assoc_string(*entity, "serialNumber", serial, 1);
+    add_assoc_string(*entity, "serialNumber", serial);
 
     zend_class_entry * dateTimeCE = php_date_get_date_ce();
     char * validityNotBefore = (char *)malloc(sizeof(char)*128);
@@ -314,7 +314,7 @@ void setX509EntityData(X509 * x509, zval ** entity) {
     MAKE_STD_ZVAL(validityNotBeforeAttribute);
     object_init_ex(validityNotBeforeAttribute, dateTimeCE);
     MAKE_STD_ZVAL(validityNotBeforeDateParam);
-    ZVAL_STRING(validityNotBeforeDateParam, validityNotBefore, 1);
+    ZVAL_STRING(validityNotBeforeDateParam, validityNotBefore);
     free(validityNotBefore);
     add_assoc_zval(*entity, "validityNotBefore", validityNotBeforeDateParam);
     //if (zend_call_method(&validityNotBeforeAttribute, dateTimeCE, &dateTimeCE->constructor, ZEND_STRL(&dateTimeCE->constructor->common.function_name), NULL, 1, validityNotBeforeDateParam TSRMLS_CC) == EXIT_FAILURE) {
@@ -341,7 +341,7 @@ void setX509EntityData(X509 * x509, zval ** entity) {
     MAKE_STD_ZVAL(validityNotAfterAttribute);
     object_init_ex(validityNotAfterAttribute, dateTimeCE);
     MAKE_STD_ZVAL(validityNotAfterDateParam);
-    ZVAL_STRING(validityNotAfterDateParam, validityNotAfter, 1);
+    ZVAL_STRING(validityNotAfterDateParam, validityNotAfter);
     free(validityNotAfter);
     add_assoc_zval(*entity, "validityNotAfter", validityNotAfterDateParam);
 }
